@@ -161,15 +161,17 @@
     <div id="login-overlay">
         <div class="login-card">
             <h2>Acceso al Sistema - Diseño Hermes Suares</h2>
-            <div class="form-group">
-                <label>Usuario (Email)</label>
-                <input type="text" id="login-usuario" placeholder="ejemplo@mail.com">
-            </div>
-            <div class="form-group">
-                <label>Contraseña</label>
-                <input type="password" id="login-password" placeholder="••••••••">
-            </div>
-            <button class="btn-login" onclick="iniciarSesion()">Ingresar</button>
+            <form id="form-login-box" autocomplete="off" onsubmit="event.preventDefault(); iniciarSesion();">
+                <div class="form-group">
+                    <label>Usuario (Email)</label>
+                    <input type="text" id="login-usuario" placeholder="ejemplo@mail.com" autocomplete="off" required>
+                </div>
+                <div class="form-group">
+                    <label>Contraseña</label>
+                    <input type="password" id="login-password" placeholder="••••••••" autocomplete="new-password" required>
+                </div>
+                <button type="submit" class="btn-login">Ingresar</button>
+            </form>
             <div id="login-error-msg" class="login-error">Usuario o contraseña incorrectos.</div>
             
             <div class="login-request">
@@ -976,9 +978,18 @@
         let listaInspectoresSabado = [];
         let inspectoresTodosLista = [];
 
-        window.onload = function() {
+        // 1) Al cargar la página, se asegura la sesión vacía y se resetea el formulario de login
+        window.addEventListener('load', () => {
+            sessionStorage.clear();
+            const formLogin = document.getElementById('form-login-box');
+            if (formLogin) formLogin.reset();
             verificarSesionAlCargar();
-        };
+        });
+
+        // 2) Limpiar la sesión al cerrar o recargar la pestaña
+        window.addEventListener('beforeunload', () => {
+            sessionStorage.clear();
+        });
 
         // ==========================================
         // MÓDULO: GESTIÓN Y POBLADO DE ZONAS
@@ -1143,6 +1154,7 @@
                     const userData = { usuario: DESIGNER_EMAIL, rol: 'Diseñador' };
                     guardarSesionLocal(userData);
                     aplicarPermisos(userData);
+                    limpiarInputsLogin();
                     return;
                 }
 
@@ -1156,6 +1168,7 @@
                     const userData = { usuario: uDoc.usuario, rol: uDoc.rol || 'Usuario' };
                     guardarSesionLocal(userData);
                     aplicarPermisos(userData);
+                    limpiarInputsLogin();
                 } else {
                     errBox.innerText = "Usuario o contraseña incorrectos, o no está autorizado.";
                     errBox.style.display = 'block';
@@ -1165,6 +1178,13 @@
                 errBox.innerText = "Error al conectar con la base de datos de seguridad.";
                 errBox.style.display = 'block';
             }
+        }
+
+        function limpiarInputsLogin() {
+            const formLogin = document.getElementById('form-login-box');
+            if (formLogin) formLogin.reset();
+            document.getElementById('login-usuario').value = '';
+            document.getElementById('login-password').value = '';
         }
 
         function guardarSesionLocal(userData) {
@@ -1186,11 +1206,10 @@
         }
 
         function cerrarSesion() {
-            sessionStorage.removeItem("rrhh_user");
+            sessionStorage.clear();
             usuarioActual = null;
+            limpiarInputsLogin();
             document.getElementById('login-overlay').style.display = 'flex';
-            document.getElementById('login-usuario').value = '';
-            document.getElementById('login-password').value = '';
         }
 
         function aplicarPermisos(userData) {
@@ -2330,12 +2349,113 @@
             });
         }
 
-        function eliminarHorario(id) {
-            if (confirm("¿Desea eliminar este registro de horario?")) {
-                db.collection("horarios").doc(id).delete().then(() => {
-                    alert("Horario eliminado.");
+        function eliminarHorario(idDoc) {
+            if (confirm("¿Estás seguro de que deseas eliminar este horario configurado?")) {
+                db.collection("horarios").doc(idDoc).delete().then(() => {
+                    alert("Horario eliminado correctamente.");
                     cargarTablaHorarios();
                 });
+            }
+        }
+
+        // ==========================================
+        // DETALLE DÍA A DÍA Y EXCEPCIONES
+        // ==========================================
+        async function cargarDetalleDia() {
+            const fecha = document.getElementById('ex-fecha').value;
+            const inspector = document.getElementById('ex-inspector').value;
+            const contenedor = document.getElementById('ex-contenedor-edicion');
+            const btnEliminar = document.getElementById('btn-eliminar-ex');
+
+            if (!fecha || !inspector) {
+                contenedor.style.display = 'none';
+                return;
+            }
+
+            document.getElementById('ex-titulo-inspector').innerText = `Inspector / Personal: ${inspector}`;
+            contenedor.style.display = 'block';
+
+            const exKey = `${fecha}_${inspector}`;
+            const mesKey = fecha.substring(0, 7);
+            const baseKey = `${mesKey}_${inspector}`;
+
+            try {
+                const exDoc = await db.collection("excepciones_horarios").doc(exKey).get();
+
+                if (exDoc.exists) {
+                    const data = exDoc.data();
+                    document.getElementById('ex-origen-info').innerText = "Horario modificado exclusivamente para esta fecha (Excepción Diaria).";
+                    document.getElementById('ex-manana-ingreso').value = data.ingresoM || 'Sin Turno';
+                    document.getElementById('ex-manana-egreso').value = data.egresoM || 'Sin Turno';
+                    document.getElementById('ex-tarde-ingreso').value = data.ingresoT || 'Sin Turno';
+                    document.getElementById('ex-tarde-egreso').value = data.egresoT || 'Sin Turno';
+                    btnEliminar.style.display = 'inline-block';
+                } else {
+                    btnEliminar.style.display = 'none';
+                    const baseDoc = await db.collection("horarios").doc(baseKey).get();
+
+                    if (baseDoc.exists) {
+                        const data = baseDoc.data();
+                        document.getElementById('ex-origen-info').innerText = "Cargando horario base mensual predeterminado.";
+                        document.getElementById('ex-manana-ingreso').value = data.ingresoM || 'Sin Turno';
+                        document.getElementById('ex-manana-egreso').value = data.egresoM || 'Sin Turno';
+                        document.getElementById('ex-tarde-ingreso').value = data.ingresoT || 'Sin Turno';
+                        document.getElementById('ex-tarde-egreso').value = data.egresoT || 'Sin Turno';
+                    } else {
+                        document.getElementById('ex-origen-info').innerText = "No hay horario mensual asignado para esta fecha. Puede establecerlo manualmente.";
+                        document.getElementById('ex-manana-ingreso').value = 'Sin Turno';
+                        document.getElementById('ex-manana-egreso').value = 'Sin Turno';
+                        document.getElementById('ex-tarde-ingreso').value = 'Sin Turno';
+                        document.getElementById('ex-tarde-egreso').value = 'Sin Turno';
+                    }
+                }
+            } catch (err) {
+                console.error("Error al cargar detalle del día:", err);
+            }
+        }
+
+        async function guardarExcepcionDiaria() {
+            const fecha = document.getElementById('ex-fecha').value;
+            const inspector = document.getElementById('ex-inspector').value;
+
+            if (!fecha || !inspector) return alert("Seleccione fecha e inspector.");
+
+            const exKey = `${fecha}_${inspector}`;
+            const data = {
+                fecha,
+                inspector,
+                ingresoM: document.getElementById('ex-manana-ingreso').value,
+                egresoM: document.getElementById('ex-manana-egreso').value,
+                ingresoT: document.getElementById('ex-tarde-ingreso').value,
+                egresoT: document.getElementById('ex-tarde-egreso').value,
+                modificadoEn: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            try {
+                await db.collection("excepciones_horarios").doc(exKey).set(data, { merge: true });
+                alert("Cambio de horario registrado exclusivamente para el día de hoy.");
+                cargarDetalleDia();
+            } catch (err) {
+                console.error("Error al guardar excepción:", err);
+                alert("Error al guardar el horario diario.");
+            }
+        }
+
+        async function eliminarExcepcionDiaria() {
+            const fecha = document.getElementById('ex-fecha').value;
+            const inspector = document.getElementById('ex-inspector').value;
+
+            if (!fecha || !inspector) return;
+
+            if (confirm("¿Desea eliminar la excepción y restablecer el horario base mensual?")) {
+                const exKey = `${fecha}_${inspector}`;
+                try {
+                    await db.collection("excepciones_horarios").doc(exKey).delete();
+                    alert("Excepción eliminada.");
+                    cargarDetalleDia();
+                } catch (err) {
+                    console.error("Error al eliminar excepción:", err);
+                }
             }
         }
 
@@ -2355,89 +2475,101 @@
         }
 
         async function cargarDashboardDiario() {
-            const fechaVal = document.getElementById('dash-fecha').value;
-            if (!fechaVal) return;
+            const fechaStr = document.getElementById('dash-fecha').value;
+            if (!fechaStr) return;
 
             const tbody = document.querySelector("#tabla-dashboard tbody");
-            tbody.innerHTML = "<tr><td colspan='5'>Cargando información...</td></tr>";
+            tbody.innerHTML = "<tr><td colspan='5'>Cargando datos del día...</td></tr>";
+
+            const diasNombre = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+            const [y, m, d] = fechaStr.split('-').map(Number);
+            const fechaObj = new Date(y, m - 1, d);
+            const diaSemanaNombre = diasNombre[fechaObj.getDay()];
 
             try {
-                const [inspectoresSnap, horariosSnap, excepcionesSnap, registrosSnap] = await Promise.all([
+                const [inspectoresSnap, registrosSnap, excepcionesSnap, horariosSnap] = await Promise.all([
                     db.collection("inspectores").orderBy("nombre", "asc").get(),
-                    db.collection("horarios").get(),
+                    db.collection("registros").where("fecha", "==", fechaStr).get(),
                     db.collection("excepciones_horarios").get(),
-                    db.collection("registros").where("fecha", "==", fechaVal).get()
+                    db.collection("horarios").get()
                 ]);
 
-                const [yyyy, mm] = fechaVal.split('-');
-                const mesKey = `${yyyy}-${mm}`;
-
-                const horariosMap = new Map();
-                horariosSnap.forEach(doc => {
-                    const h = doc.data();
-                    horariosMap.set(`${h.mes}_${h.inspector}`, h);
+                const novMap = new Map();
+                registrosSnap.forEach(doc => {
+                    const reg = doc.data();
+                    if (reg.inspector === 'TODOS (Pausa General)') {
+                        novMap.set('TODOS', reg);
+                    } else {
+                        novMap.set(reg.inspector, reg);
+                    }
                 });
 
-                const excepcionesMap = new Map();
+                const exMap = new Map();
                 excepcionesSnap.forEach(doc => {
                     const ex = doc.data();
-                    excepcionesMap.set(`${ex.fecha}_${ex.inspector}`, ex);
+                    if (ex.fecha === fechaStr) {
+                        exMap.set(ex.inspector, ex);
+                    }
                 });
 
-                const ausenciasMap = new Map();
-                registrosSnap.forEach(doc => {
-                    const r = doc.data();
-                    ausenciasMap.set(r.inspector, r);
+                const horMap = new Map();
+                const mesKey = fechaStr.substring(0, 7);
+                horariosSnap.forEach(doc => {
+                    const h = doc.data();
+                    if (h.mes === mesKey) {
+                        horMap.set(h.inspector, h);
+                    }
                 });
 
                 tbody.innerHTML = "";
 
+                if (inspectoresSnap.empty) {
+                    tbody.innerHTML = "<tr><td colspan='5'>No hay inspectores cargados en la base de datos.</td></tr>";
+                    return;
+                }
+
                 inspectoresSnap.forEach(doc => {
                     const ins = doc.data();
-                    const nombre = ins.nombre;
+                    const nombreIns = ins.nombre;
                     const legajo = ins.legajo || '-';
 
-                    const exKey = `${fechaVal}_${nombre}`;
-                    const baseKey = `${mesKey}_${nombre}`;
-
-                    let horarioStr = "Sin Horario";
-                    if (excepcionesMap.has(exKey)) {
-                        const ex = excepcionesMap.get(exKey);
-                        horarioStr = `M: ${ex.ingresoM || 'Sin Turno'}-${ex.egresoM || 'Sin Turno'} | T: ${ex.ingresoT || 'Sin Turno'}-${ex.egresoT || 'Sin Turno'}`;
-                    } else if (horariosMap.has(baseKey)) {
-                        const h = horariosMap.get(baseKey);
-                        horarioStr = `M: ${h.ingresoM || 'Sin Turno'}-${h.egresoM || 'Sin Turno'} | T: ${h.ingresoT || 'Sin Turno'}-${h.egresoT || 'Sin Turno'}`;
+                    let zonaTexto = "Sin Asignar";
+                    if (typeof asignacionesZonas !== 'undefined' && (asignacionesZonas[doc.id] || asignacionesZonas[nombreIns])) {
+                        const asig = asignacionesZonas[doc.id] || asignacionesZonas[nombreIns];
+                        zonaTexto = asig[diaSemanaNombre] || "Sin Asignar";
                     }
 
-                    let estadoStr = '<span class="badge-presente">Normal</span>';
-                    if (ausenciasMap.has(nombre)) {
-                        const aus = ausenciasMap.get(nombre);
-                        estadoStr = `<span class="badge-ausente">${aus.tipo}</span> (${aus.motivo || ''})`;
-                    } else if (ausenciasMap.has('TODOS (Pausa General)')) {
-                        const pau = ausenciasMap.get('TODOS (Pausa General)');
-                        estadoStr = `<span class="badge-ausente">Pausa General</span>`;
+                    let horarioTexto = "Sin Horario Asignado";
+                    if (exMap.has(nombreIns)) {
+                        const ex = exMap.get(nombreIns);
+                        horarioTexto = `M: ${ex.ingresoM || '-'}-${ex.egresoM || '-'} | T: ${ex.ingresoT || '-'}-${ex.egresoT || '-'}`;
+                    } else if (horMap.has(nombreIns)) {
+                        const h = horMap.get(nombreIns);
+                        horarioTexto = `M: ${h.ingresoM || '-'}-${h.egresoM || '-'} | T: ${h.ingresoT || '-'}-${h.egresoT || '-'}`;
                     }
 
-                    let zonaAsignada = asignacionesZonas[ins.legajo] || asignacionesZonas[doc.id] || "Sin Asignar";
-                    if (typeof zonaAsignada === 'object') {
-                        const dias = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-                        const dIndex = new Date(fechaVal + 'T00:00:00').getDay();
-                        zonaAsignada = zonaAsignada[dias[dIndex]] || "Sin Asignar";
+                    let estadoHTML = `<span class="badge-presente">PRESENTE / NORMAL</span>`;
+                    if (novMap.has('TODOS')) {
+                        const nov = novMap.get('TODOS');
+                        estadoHTML = `<span class="badge-ausente">PAUSA GENERAL (${nov.motivo})</span>`;
+                    } else if (novMap.has(nombreIns)) {
+                        const nov = novMap.get(nombreIns);
+                        estadoHTML = `<span class="badge-ausente">${nov.tipo.toUpperCase()}: ${nov.motivo}</span>`;
                     }
 
                     tbody.innerHTML += `
                         <tr>
                             <td>${legajo}</td>
-                            <td><strong>${nombre}</strong></td>
-                            <td>${zonaAsignada}</td>
-                            <td>${horarioStr}</td>
-                            <td>${estadoStr}</td>
-                        </tr>
-                    `;
+                            <td><strong>${nombreIns}</strong></td>
+                            <td>${zonaTexto}</td>
+                            <td>${horarioTexto}</td>
+                            <td>${estadoHTML}</td>
+                        </tr>`;
                 });
+
             } catch (err) {
-                console.error("Error al cargar dashboard diario:", err);
-                tbody.innerHTML = "<tr><td colspan='5'>Error al cargar los datos.</td></tr>";
+                console.error("Error al cargar el Dashboard:", err);
+                tbody.innerHTML = "<tr><td colspan='5'>Error al procesar la información.</td></tr>";
             }
         }
 
@@ -2470,7 +2602,6 @@
             tbody.innerHTML = "<tr><td colspan='9'>Cargando planilla...</td></tr>";
 
             try {
-                // 1. Obtener Inspectores y Horarios Base
                 const [inspectoresSnap, horariosSnap, planillaExistenteDoc] = await Promise.all([
                     db.collection("inspectores").orderBy("nombre", "asc").get(),
                     db.collection("horarios").get(),
@@ -2482,7 +2613,6 @@
                     inspectoresTodosLista.push({ id: doc.id, ...doc.data() });
                 });
 
-                // Si la planilla ya fue guardada previamente en Firebase
                 if (planillaExistenteDoc.exists) {
                     const pData = planillaExistenteDoc.data();
                     listaInspectoresSabado = pData.inspectores || [];
@@ -2491,7 +2621,6 @@
                     estadoDiv.style.color = "#155724";
                     estadoDiv.innerText = `✓ Planilla guardada cargada (${listaInspectoresSabado.length} inspectores).`;
                 } else {
-                    // Carga predeterminada: Buscar obligatorios por configuración de Horarios del mes
                     const [yyyy, mm] = fechaVal.split('-');
                     const mesKey = `${yyyy}-${mm}`;
 
@@ -2689,6 +2818,8 @@
             }
             cargarPlanillaRendicion();
         }
+
+        let listaInspectoresRendicion = [];
 
         async function cargarPlanillaRendicion() {
             const fechaVal = document.getElementById('ren-fecha').value;
