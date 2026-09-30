@@ -113,7 +113,7 @@
         .btn-export:hover { background-color: #d35400; }
         .btn-warning { background-color: #f39c12; color: white; padding: 6px 12px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer; margin-right: 5px; }
         .btn-warning:hover { background-color: #d68910; }
-        .btn-danger { background-color: #e74c3c; padding: 6px 12px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer; }
+        .btn-danger { background-color: #e74c3c; padding: 6px 12px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer; color: white; }
         .btn-danger:hover { background-color: #c0392b; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { border: 1px solid #ddd; padding: 10px; text-align: left; vertical-align: middle; }
@@ -263,7 +263,7 @@
 
             <h2>Planilla de Personal - EM</h2>
 
-            <!-- MENÚ: GESTIÓN DE USUARIOS -->
+            <!-- MENÚ: GESTIÓN DE USUARIOS (SOLO DISEÑADOR) -->
             <div id="menu-disenador" class="menu-item" style="display:none;" onclick="toggleSubmenu('sub-disenador')">Gestión de Usuarios ▾</div>
             <div id="sub-disenador" class="submenu">
                 <div class="submenu-item" id="subitem-gestion-usuarios" onclick="showSection('gestion-usuarios')">Autorizar / Crear Usuarios</div>
@@ -290,7 +290,8 @@
             <div id="menu-ausencias" class="menu-item" style="display:none;" onclick="toggleSubmenu('sub-ausencias')">Ausencias ▾</div>
             <div id="sub-ausencias" class="submenu">
                 <div class="submenu-item" id="subitem-carga-permisos" onclick="showSection('carga-permisos')">Carga de Permisos</div>
-                <div class="submenu-item" id="subitem-carga-licencias" onclick="showSection('carga-licencias')">Carga de Licencias</div>
+                <div class="submenu-item" id="subitem-carga-licencias" onclick="showSection('carga-licencias')">Carga de Licencias y Vacaciones</div>
+                <div class="submenu-item" id="subitem-gestion-feriados" onclick="showSection('gestion-feriados')">Gestión de Feriados</div>
                 <div class="submenu-item" id="subitem-carga-francos" onclick="showSection('carga-francos')">Carga de Francos</div>
                 <div class="submenu-item" id="subitem-carga-pausa" onclick="showSection('carga-pausa')">Carga de Pausa General</div>
                 <div class="submenu-item" id="subitem-listado-licencias" onclick="showSection('listado-licencias')">Listado de Licencias</div>
@@ -393,7 +394,7 @@
             </table>
         </div>
 
-        <!-- SECCIÓN: AUTORIZACIONES USUARIOS -->
+        <!-- SECCIÓN: AUTORIZACIONES USUARIOS (EXCLUSIVO DISEÑADOR) -->
         <div id="autorizaciones-usuarios" class="section">
             <div class="section-header">
                 <h3>Autorizaciones y Permisos por Tipo de Usuario</h3>
@@ -501,17 +502,122 @@
             <button onclick="guardarPermiso()">Registrar Permiso</button>
         </div>
 
-        <!-- SECCIÓN: CARGA DE LICENCIAS -->
+        <!-- SECCIÓN: CARGA DE LICENCIAS Y VACACIONES -->
         <div id="carga-licencias" class="section">
             <div class="section-header">
-                <h3>Carga de Licencias</h3>
+                <h3>Carga de Licencias y Vacaciones</h3>
                 <img src="https://raw.githubusercontent.com/hermesjs44/Em/main/icon.ico" class="designer-screen-logo" alt="Diseñador Logo">
             </div>
-            <div class="form-group"><label>Inspector</label><select class="select-inspectores" id="lic-inspector"></select></div>
-            <div class="form-group"><label>Fecha</label><input type="date" id="lic-fecha"></div>
-            <div class="form-group"><label>Motivo</label><input type="text" id="lic-motivo"></div>
-            <div class="form-group"><label>Autorizado por</label><input type="text" id="lic-autorizado"></div>
-            <button onclick="guardarLicencia()">Registrar Licencia (350 min)</button>
+
+            <!-- REGISTRO DE LICENCIA POR RANGO Y DÍAS HÁBILES -->
+            <div style="background: #ffffff; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 25px;">
+                <h4 style="margin-top:0; color:#2c3e50; border-bottom: 1px solid #1abc9c; padding-bottom: 5px;">Registrar Solicitud de Licencia / Vacaciones</h4>
+                
+                <div class="form-group">
+                    <label>Inspector / Personal</label>
+                    <select class="select-inspectores" id="lic-inspector" onchange="actualizarResumenVacacionesInspector()"></select>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                    <div class="form-group">
+                        <label>Año Correspondiente a la Licencia</label>
+                        <input type="number" id="lic-ano-corresponde" placeholder="Ej: 2024" min="2000" max="2100">
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha Desde (Inicio)</label>
+                        <input type="date" id="lic-fecha-desde" onchange="calcularDiasHabilesYRegreso()">
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha Hasta (Fin)</label>
+                        <input type="date" id="lic-fecha-hasta" onchange="calcularDiasHabilesYRegreso()">
+                    </div>
+                    <div class="form-group">
+                        <label>Días Hábiles Solicitados (Excluye Feriados)</label>
+                        <input type="number" id="lic-dias-habiles" readonly style="background-color: #f1f5f9; font-weight: bold;">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-top: 10px;">
+                    <div class="form-group">
+                        <label style="color: #d35400;">Próximo Día Hábil (Fecha de Reincorporación / Ingreso)</label>
+                        <input type="date" id="lic-fecha-ingreso" style="border: 2px solid #e67e22; font-weight: bold; background-color: #fffde7;">
+                        <small style="font-size: 11px; color: #7f8c8d;">Calculado omitiendo fines de semana y feriados cargados.</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Días Pendientes de Licencia (Restantes)</label>
+                        <input type="number" id="lic-dias-pendientes" placeholder="Ej: 5">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Motivo / Observaciones</label>
+                    <input type="text" id="lic-motivo" placeholder="Ej: Vacaciones anuales correspondientes al periodo 2024">
+                </div>
+                <div class="form-group">
+                    <label>Autorizado por</label>
+                    <input type="text" id="lic-autorizado" placeholder="Ej: Dirección de RRHH">
+                </div>
+
+                <button onclick="guardarLicencia()">Registrar Licencia</button>
+            </div>
+
+            <!-- CARGA INDIVIDUAL DE VACACIONES CORRESPONDIENTES POR AÑO -->
+            <div style="background: #f8f9fa; border: 1px solid #cbd5e1; padding: 15px; border-radius: 8px;">
+                <h4 style="margin-top:0; color:#2c3e50; border-bottom: 1px solid #3498db; padding-bottom: 5px;">Asignación Individual de Días de Vacaciones por Año</h4>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; align-items: end;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Año de Asignación</label>
+                        <input type="number" id="vac-ano" placeholder="Ej: 2025" min="2000" max="2100">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Días Totales Otorgados</label>
+                        <input type="number" id="vac-dias-totales" placeholder="Ej: 14">
+                    </div>
+                    <div>
+                        <button type="button" onclick="guardarVacacionesAnualesInspector()" style="background-color: #2980b9; width: 100%;">Guardar Vacaciones Anuales</button>
+                    </div>
+                </div>
+
+                <div id="resumen-vacaciones-inspector" style="margin-top: 15px; font-size: 13px; color: #2c3e50; font-weight: bold;"></div>
+            </div>
+        </div>
+
+        <!-- SECCIÓN: GESTIÓN DE FERIADOS -->
+        <div id="gestion-feriados" class="section">
+            <div class="section-header">
+                <h3>Gestión de Días Feriados</h3>
+                <img src="https://raw.githubusercontent.com/hermesjs44/Em/main/icon.ico" class="designer-screen-logo" alt="Diseñador Logo">
+            </div>
+            
+            <div style="background: #ffffff; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <h4 style="margin-top: 0; color: #2c3e50;">Registrar Nuevo Feriado</h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; align-items: end;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Fecha del Feriado</label>
+                        <input type="date" id="feriado-fecha">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Descripción / Motivo</label>
+                        <input type="text" id="feriado-descripcion" placeholder="Ej: Año Nuevo, Día de la Revolución">
+                    </div>
+                    <div>
+                        <button onclick="guardarFeriado()" style="background-color: #27ae60; width: 100%;">+ Agregar Feriado</button>
+                    </div>
+                </div>
+            </div>
+
+            <h4>Feriados Registrados</h4>
+            <table id="tabla-feriados">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Descripción / Motivo</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
         </div>
 
         <!-- SECCIÓN: CARGA DE FRANCOS -->
@@ -551,7 +657,7 @@
         <!-- SECCIÓN: LISTADO DE LICENCIAS FILTRADO POR MES -->
         <div id="listado-licencias" class="section">
             <div class="section-header">
-                <h3>Listado de Licencias Filtrado por Mes</h3>
+                <h3>Listado de Licencias Registradas</h3>
                 <img src="https://raw.githubusercontent.com/hermesjs44/Em/main/icon.ico" class="designer-screen-logo" alt="Diseñador Logo">
             </div>
             <div class="controls-row">
@@ -568,11 +674,12 @@
             <table id="tabla-licencias">
                 <thead>
                     <tr>
-                        <th>Fecha</th>
+                        <th>Rango (Desde - Hasta)</th>
                         <th>Inspector</th>
                         <th>Motivo / Observación</th>
+                        <th>Días Hábiles / Año</th>
+                        <th>Fecha de Ingreso</th>
                         <th>Autorizado por</th>
-                        <th>Descuento (min)</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
@@ -1104,6 +1211,7 @@
         let usuarioActual = null;
         let inspectoresZonasCache = new Map();
         let asignacionesZonas = {};
+        let feriadosSet = new Set(); // Guardo de feriados en formato YYYY-MM-DD
 
         // Lista de menús y submenús configurables para la matriz de permisos
         const listaMenusPermisos = [
@@ -1125,7 +1233,8 @@
             // Menú Ausencias y sus submenús
             { id: 'menu-ausencias', subId: 'sub-ausencias', nombre: 'Ausencias (Menú Principal)', esPrincipal: true },
             { id: 'subitem-carga-permisos', subId: 'sub-ausencias', nombre: '↪ Carga de Permisos', esPrincipal: false },
-            { id: 'subitem-carga-licencias', subId: 'sub-ausencias', nombre: '↪ Carga de Licencias', esPrincipal: false },
+            { id: 'subitem-carga-licencias', subId: 'sub-ausencias', nombre: '↪ Carga de Licencias y Vacaciones', esPrincipal: false },
+            { id: 'subitem-gestion-feriados', subId: 'sub-ausencias', nombre: '↪ Gestión de Feriados', esPrincipal: false },
             { id: 'subitem-carga-francos', subId: 'sub-ausencias', nombre: '↪ Carga de Francos', esPrincipal: false },
             { id: 'subitem-carga-pausa', subId: 'sub-ausencias', nombre: '↪ Carga de Pausa General', esPrincipal: false },
             { id: 'subitem-listado-licencias', subId: 'sub-ausencias', nombre: '↪ Listado de Licencias', esPrincipal: false },
@@ -1183,14 +1292,28 @@
         });
 
         // ==========================================
-        // MÓDULO: AUTORIZACIONES Y MATRIZ DE PERMISOS
+        // MÓDULO: AUTORIZACIONES Y MATRIZ DE PERMISOS (SOLO DISEÑADOR)
         // ==========================================
-        function cargarMatrizPermisosRol() {
+        async function cargarMatrizPermisosRol() {
+            if (!usuarioActual || usuarioActual.rol !== 'Diseñador') {
+                return alert("Acceso restringido únicamente al Diseñador.");
+            }
+
             const rol = document.getElementById('permiso-rol-select').value;
             const tbody = document.getElementById('body-permisos-rol');
             if (!tbody) return;
 
             tbody.innerHTML = '';
+
+            try {
+                const docSnap = await db.collection("configuracion_permisos").doc(rol).get();
+                if (docSnap.exists) {
+                    permisosRoles[rol] = docSnap.data().permisos || {};
+                }
+            } catch (err) {
+                console.warn("Cargando permisos desde estado local:", err);
+            }
+
             const configRol = permisosRoles[rol] || {};
 
             listaMenusPermisos.forEach(m => {
@@ -1211,7 +1334,11 @@
             });
         }
 
-        function guardarConfiguracionPermisosRol() {
+        async function guardarConfiguracionPermisosRol() {
+            if (!usuarioActual || usuarioActual.rol !== 'Diseñador') {
+                return alert("Acceso restringido únicamente al Diseñador.");
+            }
+
             const rol = document.getElementById('permiso-rol-select').value;
             const inputs = document.querySelectorAll('#body-permisos-rol input[type="checkbox"]');
             
@@ -1223,7 +1350,20 @@
             });
 
             localStorage.setItem('permisos_roles_app', JSON.stringify(permisosRoles));
-            alert(`Permisos para el rol "${rol}" guardados correctamente.`);
+
+            try {
+                await db.collection("configuracion_permisos").doc(rol).set({
+                    rol: rol,
+                    permisos: permisosRoles[rol],
+                    actualizadoPor: usuarioActual.usuario,
+                    actualizadoEn: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+
+                alert(`Permisos para la categoría "${rol}" guardados correctamente.`);
+            } catch (err) {
+                console.error("Error al guardar permisos en Firebase:", err);
+                alert("Permisos guardados localmente. Error al sincronizar en base de datos.");
+            }
             
             if (usuarioActual) aplicarPermisos(usuarioActual);
         }
@@ -1390,7 +1530,7 @@
                 if (userIn === DESIGNER_EMAIL && (passIn === 'admin123' || passIn === 'diseñador123' || passIn === 'disenador123')) {
                     const userData = { usuario: DESIGNER_EMAIL, rol: 'Diseñador' };
                     guardarSesionLocal(userData);
-                    aplicarPermisos(userData);
+                    await aplicarPermisos(userData);
                     limpiarInputsLogin();
                     return;
                 }
@@ -1404,7 +1544,7 @@
                     const uDoc = querySnap.docs[0].data();
                     const userData = { usuario: uDoc.usuario, rol: uDoc.rol || 'Usuario' };
                     guardarSesionLocal(userData);
-                    aplicarPermisos(userData);
+                    await aplicarPermisos(userData);
                     limpiarInputsLogin();
                 } else {
                     errBox.innerText = "Usuario o contraseña incorrectos, o no está autorizado.";
@@ -1428,12 +1568,12 @@
             sessionStorage.setItem("rrhh_user", JSON.stringify(userData));
         }
 
-        function verificarSesionAlCargar() {
+        async function verificarSesionAlCargar() {
             const saved = sessionStorage.getItem("rrhh_user");
             if (saved) {
                 try {
                     const userData = JSON.parse(saved);
-                    aplicarPermisos(userData);
+                    await aplicarPermisos(userData);
                 } catch(e) {
                     cerrarSesion();
                 }
@@ -1449,7 +1589,7 @@
             document.getElementById('login-overlay').style.display = 'flex';
         }
 
-        function aplicarPermisos(userData) {
+        async function aplicarPermisos(userData) {
             usuarioActual = userData;
             document.getElementById('login-overlay').style.display = 'none';
 
@@ -1457,28 +1597,44 @@
             document.getElementById('lbl-rol').innerText = userData.rol;
 
             const rol = userData.rol;
+
+            // Cargar la última matriz de permisos configurada desde la BD
+            try {
+                const docPerm = await db.collection("configuracion_permisos").doc(rol).get();
+                if (docPerm.exists) {
+                    permisosRoles[rol] = docPerm.data().permisos || {};
+                }
+            } catch (err) {
+                console.warn("Uso de permisos locales predeterminados:", err);
+            }
+
             const configRol = permisosRoles[rol] || {};
 
-            // Ocultar por defecto todos los items y submenús
             listaMenusPermisos.forEach(m => {
                 const el = document.getElementById(m.id);
                 if (el) el.style.display = 'none';
             });
 
-            // Aplicar permisos elemento por elemento
             listaMenusPermisos.forEach(m => {
                 const el = document.getElementById(m.id);
                 if (!el) return;
 
-                // Si no hay configuración explícita guardada, usar valores por defecto por rol
                 let permitido = configRol[m.id];
+
+                // Reglas por defecto si no están explícitamente configuradas
                 if (permitido === undefined) {
-                    if (rol === 'Diseñador') permitido = true;
-                    else if (rol === 'Administrador') {
+                    if (rol === 'Diseñador') {
+                        permitido = true;
+                    } else if (rol === 'Administrador') {
                         permitido = (m.id !== 'menu-disenador' && !m.id.startsWith('subitem-exportar') && m.id !== 'subitem-importar' && m.id !== 'subitem-migrar-legacy');
                     } else if (rol === 'Usuario') {
                         permitido = (m.id === 'menu-principal' || m.id === 'subitem-dashboard-diario' || m.id === 'subitem-firmar-sabado' || m.id === 'subitem-planilla-rendicion');
                     }
+                }
+
+                // Restricción dura: La gestión de usuarios siempre requiere ser Diseñador
+                if ((m.id === 'menu-disenador' || m.id === 'subitem-gestion-usuarios' || m.id === 'subitem-autorizaciones-usuarios') && rol !== 'Diseñador') {
+                    permitido = false;
                 }
 
                 if (permitido) {
@@ -1610,6 +1766,7 @@
             if (id === 'listado-permisos') inicializarFiltroPermisos();
             if (id === 'listado-francos') inicializarFiltroFrancos();
             if (id === 'listado-general') cargarTablaRegistros();
+            if (id === 'gestion-feriados') cargarTablaFeriados();
             if (id === 'lista-horarios') {
                 llenarSelectInspectores();
                 cargarTablaHorarios();
@@ -1642,6 +1799,7 @@
 
             if (['carga-permisos', 'carga-licencias', 'carga-francos', 'carga-horarios'].includes(id)) {
                 llenarSelectInspectores();
+                if (id === 'carga-licencias') cargarFeriadosCache();
                 if (id === 'carga-horarios') inicializarMesYHorarios();
             }
         }
@@ -1755,6 +1913,210 @@
         }
 
         // ==========================================
+        // GESTIÓN Y CACHÉ DE FERIADOS
+        // ==========================================
+        async function cargarFeriadosCache() {
+            feriadosSet.clear();
+            try {
+                const snap = await db.collection("feriados").get();
+                snap.forEach(doc => {
+                    feriadosSet.add(doc.data().fecha);
+                });
+            } catch (err) {
+                console.error("Error cargando feriados:", err);
+            }
+        }
+
+        async function guardarFeriado() {
+            const fecha = document.getElementById('feriado-fecha').value;
+            const descripcion = document.getElementById('feriado-descripcion').value.trim();
+
+            if (!fecha || !descripcion) {
+                return alert("Por favor complete la fecha y descripción del feriado.");
+            }
+
+            try {
+                await db.collection("feriados").doc(fecha).set({
+                    fecha,
+                    descripcion,
+                    creadoEn: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                alert("Feriado guardado correctamente.");
+                document.getElementById('feriado-fecha').value = "";
+                document.getElementById('feriado-descripcion').value = "";
+                cargarTablaFeriados();
+                cargarFeriadosCache();
+            } catch (err) {
+                console.error("Error al guardar feriado:", err);
+                alert("Error al registrar el feriado.");
+            }
+        }
+
+        async function cargarTablaFeriados() {
+            const tbody = document.querySelector("#tabla-feriados tbody");
+            tbody.innerHTML = "<tr><td colspan='3'>Cargando feriados...</td></tr>";
+
+            try {
+                const snap = await db.collection("feriados").orderBy("fecha", "asc").get();
+                tbody.innerHTML = "";
+                if (snap.empty) {
+                    tbody.innerHTML = "<tr><td colspan='3'>No hay feriados registrados.</td></tr>";
+                    return;
+                }
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    tbody.innerHTML += `
+                        <tr>
+                            <td><strong>${d.fecha}</strong></td>
+                            <td>${d.descripcion}</td>
+                            <td>
+                                <button class="btn-danger" onclick="eliminarFeriado('${d.fecha}')">Eliminar</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } catch (err) {
+                console.error("Error al obtener feriados:", err);
+            }
+        }
+
+        async function eliminarFeriado(fecha) {
+            if (confirm(`¿Desea eliminar el feriado del ${fecha}?`)) {
+                try {
+                    await db.collection("feriados").doc(fecha).delete();
+                    cargarTablaFeriados();
+                    cargarFeriadosCache();
+                } catch (err) {
+                    console.error("Error al eliminar feriado:", err);
+                }
+            }
+        }
+
+        // ==========================================
+        // CÁLCULO DE DÍAS HÁBILES Y PRÓXIMO DÍA HÁBIL
+        // ==========================================
+        function esDiaHabil(fecha) {
+            const diaSemana = fecha.getDay(); // 0: Domingo, 6: Sábado
+            if (diaSemana === 0 || diaSemana === 6) return false;
+
+            const yyyy = fecha.getFullYear();
+            const mm = String(fecha.getMonth() + 1).padStart(2, '0');
+            const dd = String(fecha.getDate()).padStart(2, '0');
+            const fechaStr = `${yyyy}-${mm}-${dd}`;
+
+            return !feriadosSet.has(fechaStr);
+        }
+
+        function obtenerProximoDiaHabil(fechaBase) {
+            let fecha = new Date(fechaBase);
+            fecha.setDate(fecha.getDate() + 1);
+            while (!esDiaHabil(fecha)) {
+                fecha.setDate(fecha.getDate() + 1);
+            }
+            return fecha;
+        }
+
+        async function calcularDiasHabilesYRegreso() {
+            if (feriadosSet.size === 0) {
+                await cargarFeriadosCache();
+            }
+
+            const fDesdeStr = document.getElementById('lic-fecha-desde').value;
+            const fHastaStr = document.getElementById('lic-fecha-hasta').value;
+
+            if (!fDesdeStr || !fHastaStr) return;
+
+            const [y1, m1, d1] = fDesdeStr.split('-').map(Number);
+            const [y2, m2, d2] = fHastaStr.split('-').map(Number);
+
+            let fechaInicio = new Date(y1, m1 - 1, d1);
+            let fechaFin = new Date(y2, m2 - 1, d2);
+
+            if (fechaFin < fechaInicio) {
+                alert("La fecha hasta no puede ser anterior a la fecha desde.");
+                document.getElementById('lic-fecha-hasta').value = fDesdeStr;
+                fechaFin = new Date(fechaInicio);
+            }
+
+            let contadorDiasHabiles = 0;
+            let fechaAux = new Date(fechaInicio);
+
+            while (fechaAux <= fechaFin) {
+                if (esDiaHabil(fechaAux)) {
+                    contadorDiasHabiles++;
+                }
+                fechaAux.setDate(fechaAux.getDate() + 1);
+            }
+
+            document.getElementById('lic-dias-habiles').value = contadorDiasHabiles;
+
+            const proxDiaHabil = obtenerProximoDiaHabil(fechaFin);
+            const yyyy = proxDiaHabil.getFullYear();
+            const mm = String(proxDiaHabil.getMonth() + 1).padStart(2, '0');
+            const dd = String(proxDiaHabil.getDate()).padStart(2, '0');
+
+            document.getElementById('lic-fecha-ingreso').value = `${yyyy}-${mm}-${dd}`;
+        }
+
+        // ==========================================
+        // GESTIÓN DE VACACIONES ANUALES INDIVIDUALES
+        // ==========================================
+        async function guardarVacacionesAnualesInspector() {
+            const inspector = document.getElementById('lic-inspector').value;
+            const ano = document.getElementById('vac-ano').value;
+            const diasTotales = parseInt(document.getElementById('vac-dias-totales').value, 10);
+
+            if (!inspector || !ano || isNaN(diasTotales) || diasTotales <= 0) {
+                return alert("Seleccione un inspector, ingrese el año y la cantidad de días otorgados.");
+            }
+
+            const docId = `${ano}_${inspector}`;
+
+            try {
+                await db.collection("vacaciones_anuales").doc(docId).set({
+                    inspector,
+                    ano: parseInt(ano, 10),
+                    diasOtorgados: diasTotales,
+                    actualizadoEn: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+
+                alert(`Se asignaron ${diasTotales} días de vacaciones a ${inspector} para el año ${ano}.`);
+                actualizarResumenVacacionesInspector();
+            } catch (err) {
+                console.error("Error al guardar asignación:", err);
+                alert("Error al guardar la asignación de vacaciones.");
+            }
+        }
+
+        async function actualizarResumenVacacionesInspector() {
+            const inspector = document.getElementById('lic-inspector').value;
+            const divResumen = document.getElementById('resumen-vacaciones-inspector');
+            if (!divResumen) return;
+
+            if (!inspector) {
+                divResumen.innerText = "";
+                return;
+            }
+
+            try {
+                const snap = await db.collection("vacaciones_anuales").where("inspector", "==", inspector).get();
+                if (snap.empty) {
+                    divResumen.innerText = `No hay vacaciones anuales asignadas para ${inspector}.`;
+                    return;
+                }
+
+                let texto = `Vacaciones Asignadas para ${inspector}: `;
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    texto += `[Año ${d.ano}: ${d.diasOtorgados} días] `;
+                });
+                divResumen.innerText = texto;
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // ==========================================
         // GESTIÓN DE PERMISOS, LICENCIAS Y FRANCOS
         // ==========================================
         function guardarPermiso() {
@@ -1788,24 +2150,45 @@
             });
         }
 
-        function guardarLicencia() {
+        async function guardarLicencia() {
             const inspector = document.getElementById('lic-inspector').value;
-            const fecha = document.getElementById('lic-fecha').value;
+            const fechaDesde = document.getElementById('lic-fecha-desde').value;
+            const fechaHasta = document.getElementById('lic-fecha-hasta').value;
+            const diasHabiles = parseInt(document.getElementById('lic-dias-habiles').value, 10) || 0;
+            const fechaIngreso = document.getElementById('lic-fecha-ingreso').value;
+            const anoCorresponde = document.getElementById('lic-ano-corresponde').value;
+            const diasPendientes = document.getElementById('lic-dias-pendientes').value;
             const motivo = document.getElementById('lic-motivo').value;
             const autorizado = document.getElementById('lic-autorizado').value;
 
-            if (!inspector || !fecha) return alert("Seleccione inspector y fecha.");
+            if (!inspector || !fechaDesde || !fechaHasta) {
+                return alert("Complete los campos obligatorios: Inspector, Fecha Desde y Fecha Hasta.");
+            }
 
             const data = {
-                inspector, fecha, tipo: 'Licencia',
-                motivo, autorizado, descuentoMinutos: 350,
+                inspector,
+                fecha: fechaDesde,
+                fechaDesde,
+                fechaHasta,
+                diasHabiles,
+                fechaIngresoConfirmada: fechaIngreso,
+                anoCorrespondiente: anoCorresponde || '-',
+                diasPendientes: diasPendientes !== "" ? parseInt(diasPendientes, 10) : '-',
+                tipo: 'Licencia',
+                motivo: `${motivo || 'Licencia/Vacaciones'} (${diasHabiles} días hábiles - Corresponde Año ${anoCorresponde || '-'}) - Regreso: ${fechaIngreso}`,
+                autorizado,
+                descuentoMinutos: diasHabiles * 350,
                 creadoEn: firebase.firestore.FieldValue.serverTimestamp()
             };
 
-            db.collection("registros").add(data).then(() => {
-                alert("Licencia registrada.");
+            try {
+                await db.collection("registros").add(data);
+                alert("Licencia registrada correctamente.");
                 showSection('listado-licencias');
-            });
+            } catch (err) {
+                console.error("Error al registrar licencia:", err);
+                alert("Error al registrar la licencia.");
+            }
         }
 
         function guardarFranco() {
@@ -1897,7 +2280,7 @@
             if (!mesVal) return;
 
             const tbody = document.querySelector("#tabla-licencias tbody");
-            tbody.innerHTML = "<tr><td colspan='6'>Cargando licencias...</td></tr>";
+            tbody.innerHTML = "<tr><td colspan='7'>Cargando licencias...</td></tr>";
 
             try {
                 const snap = await db.collection("registros")
@@ -1912,13 +2295,15 @@
                     let d = doc.data();
                     if (d.fecha && d.fecha.startsWith(mesVal)) {
                         cantidad++;
+                        const rangoFechas = d.fechaDesde && d.fechaHasta ? `${d.fechaDesde} al ${d.fechaHasta}` : (d.fecha || '-');
                         tbody.innerHTML += `
                             <tr>
-                                <td>${d.fecha || ''}</td>
+                                <td>${rangoFechas}</td>
                                 <td><strong>${d.inspector || ''}</strong></td>
                                 <td>${d.motivo || '-'}</td>
+                                <td>Año ${d.anoCorrespondiente || '-'} (${d.diasHabiles || 1} d. hábiles)</td>
+                                <td><strong>${d.fechaIngresoConfirmada || '-'}</strong></td>
                                 <td>${d.autorizado || '-'}</td>
-                                <td>${d.descuentoMinutos || 0} min</td>
                                 <td>
                                     <button class="btn-warning" onclick="abrirModalEditarAusencia('${doc.id}')">Modificar</button>
                                     <button class="btn-danger" onclick="eliminarAusencia('${doc.id}')">Eliminar</button>
@@ -1929,11 +2314,11 @@
 
                 document.getElementById('lbl-total-licencias').innerText = cantidad;
                 if (cantidad === 0) {
-                    tbody.innerHTML = "<tr><td colspan='6'>No se encontraron licencias registradas en el mes seleccionado.</td></tr>";
+                    tbody.innerHTML = "<tr><td colspan='7'>No se encontraron licencias registradas en el mes seleccionado.</td></tr>";
                 }
             } catch (err) {
                 console.error("Error al cargar licencias:", err);
-                tbody.innerHTML = "<tr><td colspan='6'>Error al cargar datos.</td></tr>";
+                tbody.innerHTML = "<tr><td colspan='7'>Error al cargar datos.</td></tr>";
             }
         }
 
@@ -2045,11 +2430,13 @@
                 let d = doc.data();
                 if (d.fecha && d.fecha.startsWith(mesVal)) {
                     excelData.push({
-                        "Fecha": d.fecha || '-',
+                        "Rango Fechas": d.fechaDesde && d.fechaHasta ? `${d.fechaDesde} al ${d.fechaHasta}` : (d.fecha || '-'),
                         "Inspector": d.inspector || '-',
                         "Motivo": d.motivo || '-',
-                        "Autorizado Por": d.autorizado || '-',
-                        "Descuento (Minutos)": d.descuentoMinutos || 0
+                        "Año Correspondiente": d.anoCorrespondiente || '-',
+                        "Días Hábiles": d.diasHabiles || 1,
+                        "Fecha de Ingreso": d.fechaIngresoConfirmada || '-',
+                        "Autorizado Por": d.autorizado || '-'
                     });
                 }
             });
@@ -2583,12 +2970,10 @@
                     horarios.push({ id: doc.id, ...doc.data() });
                 });
 
-                // Filtrar por inspector si está seleccionado
                 if (filtroInspector) {
                     horarios = horarios.filter(h => h.inspector === filtroInspector);
                 }
 
-                // Ordenar descendente por mes (y secundariamente por inspector)
                 horarios.sort((a, b) => {
                     if (b.mes !== a.mes) {
                         return (b.mes || "").localeCompare(a.mes || "");
@@ -2919,10 +3304,10 @@
                                 legajo: ins.legajo || '',
                                 nombre: ins.nombre || '',
                                 condicion: ins.condicion || ins.estado || 'P.P.',
-                                citacion: '08:00 hs',
+                                citacion: '08:30 hs',
                                 asistencia: 'Presente',
-                                ingreso: '08:00',
-                                salida: '12:00',
+                                ingreso: '08:30',
+                                salida: '12:30',
                                 tipo: 'OBLIGATORIO'
                             });
                         }
@@ -2970,8 +3355,8 @@
                                 <option value="Justificado" ${item.asistencia === 'Justificado' ? 'selected' : ''}>Justificado</option>
                             </select>
                         </td>
-                        <td><input type="time" value="${item.ingreso || '08:00'}" onchange="actualizarDatoSabado(${idx}, 'ingreso', this.value)" style="padding: 4px;"></td>
-                        <td><input type="time" value="${item.salida || '12:00'}" onchange="actualizarDatoSabado(${idx}, 'salida', this.value)" style="padding: 4px;"></td>
+                        <td><input type="time" value="${item.ingreso || '08:30'}" onchange="actualizarDatoSabado(${idx}, 'ingreso', this.value)" style="padding: 4px;"></td>
+                        <td><input type="time" value="${item.salida || '12:30'}" onchange="actualizarDatoSabado(${idx}, 'salida', this.value)" style="padding: 4px;"></td>
                         <td style="text-align:center; color:#bdc3c7; font-style:italic;">___________________</td>
                         <td>
                             <button class="btn-danger" onclick="quitarInspectorSabado(${idx})">Quitar</button>
@@ -3013,10 +3398,10 @@
                 legajo: inspectorObj.legajo || '',
                 nombre: inspectorObj.nombre,
                 condicion: inspectorObj.condicion || inspectorObj.estado || 'P.P.',
-                citacion: '08:00 hs',
+                citacion: '08:30 hs',
                 asistencia: 'Presente',
-                ingreso: '08:00',
-                salida: '12:00',
+                ingreso: '08:30',
+                salida: '12:30',
                 tipo: 'VOLUNTARIO'
             });
 
