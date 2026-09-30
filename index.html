@@ -703,39 +703,39 @@
                 <div class="form-group">
                     <label>Ingreso M</label>
                     <select id="hor-manana-ingreso">
-                        <option value="7:00">7:00</option>
-                        <option value="7:30">7:30</option>
+                        <option value="6:30">6:30</option>
                         <option value="8:00">8:00</option>
-                        <option value="8:55">8:55</option>
+                        <option value="9:00">9:00</option>
+                        <option value="13:00">13:00</option>
                     </select>
                 </div>
 
                 <div class="form-group">
                     <label>Egreso M</label>
                     <select id="hor-manana-egreso">
-                        <option value="11:20">11:20</option>
-                        <option value="12:20">12:20</option>
-                        <option value="13:00">13:00</option>
-                        <option value="14:00">14:00</option>
+                        <option value="11:15">11:15</option>
+                        <option value="12:15">12:15</option>
+                        <option value="13:30">13:30</option>
+                        <option value="10:30">10:30</option>
                     </select>
                 </div>
 
                 <div class="form-group">
                     <label>Ingreso T</label>
                     <select id="hor-tarde-ingreso">
-                        <option value="14:00">14:00</option>
-                        <option value="15:10">15:10</option>
-                        <option value="16:10">16:10</option>
-                        <option value="17:10">17:10</option>
+                        <option value="15:15">15:15</option>
+                        <option value="16:15">16:15</option>
+                        <option value="17:15">17:15</option>
+                        <option value="13:00">13:00</option>
                     </select>
                 </div>
 
                 <div class="form-group">
                     <label>Egreso T</label>
                     <select id="hor-tarde-egreso">
-                        <option value="17:50">17:50</option>
-                        <option value="18:50">18:50</option>
-                        <option value="19:50">19:50</option>
+                        <option value="17:45">17:45</option>
+                        <option value="18:45">18:45</option>
+                        <option value="19:45">19:45</option>
                         <option value="20:00">20:00</option>
                     </select>
                 </div>
@@ -772,6 +772,18 @@
                 <h3>Listado de Horarios de Trabajo</h3>
                 <img src="https://raw.githubusercontent.com/hermesjs44/Em/main/icon.ico" class="designer-screen-logo" alt="Diseñador Logo">
             </div>
+
+            <!-- CONTROLES DE FILTRADO -->
+            <div class="controls-row">
+                <div class="form-group">
+                    <label>Filtrar por Inspector</label>
+                    <select class="select-inspectores" id="filtro-horarios-inspector" onchange="cargarTablaHorarios()">
+                        <option value="">-- Todos los Inspectores --</option>
+                    </select>
+                </div>
+                <button onclick="cargarTablaHorarios()">Actualizar Listado</button>
+            </div>
+
             <table id="tabla-horarios">
                 <thead>
                     <tr>
@@ -1592,7 +1604,10 @@
             if (id === 'listado-permisos') inicializarFiltroPermisos();
             if (id === 'listado-francos') inicializarFiltroFrancos();
             if (id === 'listado-general') cargarTablaRegistros();
-            if (id === 'lista-horarios') cargarTablaHorarios();
+            if (id === 'lista-horarios') {
+                llenarSelectInspectores();
+                cargarTablaHorarios();
+            }
             if (id === 'firmar-sabado') inicializarFechaSabado();
             if (id === 'planilla-rendicion') inicializarFechaRendicion();
 
@@ -1721,7 +1736,15 @@
                     inspectoresZonasCache.set(data.nombre, { id: doc.id, ...data });
                     options += `<option value="${data.nombre}">${data.nombre}</option>`;
                 });
-                selects.forEach(select => select.innerHTML = options);
+                selects.forEach(select => {
+                    const valPrevio = select.value;
+                    if (select.id === 'filtro-horarios-inspector') {
+                        select.innerHTML = "<option value=''>-- Todos los Inspectores --</option>" + options.replace("<option value=''>-- Seleccionar Inspector / Personal --</option>", "");
+                    } else {
+                        select.innerHTML = options;
+                    }
+                    if (valPrevio) select.value = valPrevio;
+                });
             });
         }
 
@@ -2545,10 +2568,35 @@
 
         function cargarTablaHorarios() {
             const tbody = document.querySelector("#tabla-horarios tbody");
-            tbody.innerHTML = "";
+            const filtroInspector = document.getElementById('filtro-horarios-inspector')?.value || "";
+            tbody.innerHTML = "<tr><td colspan='10'>Cargando horarios...</td></tr>";
+
             db.collection("horarios").get().then((snap) => {
+                let horarios = [];
                 snap.forEach((doc) => {
-                    let d = doc.data();
+                    horarios.push({ id: doc.id, ...doc.data() });
+                });
+
+                // Filtrar por inspector si está seleccionado
+                if (filtroInspector) {
+                    horarios = horarios.filter(h => h.inspector === filtroInspector);
+                }
+
+                // Ordenar descendente por mes (y secundariamente por inspector)
+                horarios.sort((a, b) => {
+                    if (b.mes !== a.mes) {
+                        return (b.mes || "").localeCompare(a.mes || "");
+                    }
+                    return (a.inspector || "").localeCompare(b.inspector || "");
+                });
+
+                tbody.innerHTML = "";
+                if (horarios.length === 0) {
+                    tbody.innerHTML = "<tr><td colspan='10' style='text-align:center;'>No se encontraron horarios registrados.</td></tr>";
+                    return;
+                }
+
+                horarios.forEach((d) => {
                     tbody.innerHTML += `
                         <tr>
                             <td><strong>${d.inspector || ''}</strong></td>
@@ -2561,10 +2609,13 @@
                             <td>${d.sabado2 || ''}</td>
                             <td>${d.sabado3 || ''}</td>
                             <td>
-                                <button class="btn-danger" onclick="eliminarHorario('${doc.id}')">Eliminar</button>
+                                <button class="btn-danger" onclick="eliminarHorario('${d.id}')">Eliminar</button>
                             </td>
                         </tr>`;
                 });
+            }).catch(err => {
+                console.error("Error al cargar horarios:", err);
+                tbody.innerHTML = "<tr><td colspan='10'>Error al cargar los horarios.</td></tr>";
             });
         }
 
